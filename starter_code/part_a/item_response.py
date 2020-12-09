@@ -1,5 +1,6 @@
 from utils import *
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -25,13 +26,20 @@ def neg_log_likelihood(data, theta, beta):
     # Implement the function as described in the docstring.             #
     #####################################################################
     log_lklihood = 0.
+
+    for i in range(len(data["user_id"])):
+      u = data["user_id"][i]
+      q = data["question_id"][i]
+      c = data["is_correct"][i]
+
+      log_lklihood += c*(theta[u]-beta[q]) - np.log(1 + np.exp(theta[u]-beta[q]))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
     return -log_lklihood
 
 
-def update_theta_beta(data, lr, theta, beta):
+def update_theta_beta(data, lr, theta, beta, c_matrix, in_data_matrix):
     """ Update theta and beta using gradient descent.
 
     You are using alternating gradient descent. Your update should look:
@@ -52,14 +60,18 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    pass
+    t = theta.copy()
+    b = beta.copy()
+    diff = np.multiply(c_matrix - sigmoid(np.subtract.outer(t[:,0], b[:,0])), in_data_matrix)
+    theta += lr * np.dot(diff, np.ones((1774,1)))
+    beta += lr * np.dot((-1 * diff.T), np.ones((542,1)))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
     return theta, beta
 
 
-def irt(data, val_data, lr, iterations):
+def irt(data, val_data, lr, iterations, c_matrix, in_data_matrix):
     """ Train IRT model.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -73,18 +85,28 @@ def irt(data, val_data, lr, iterations):
     :return: (theta, beta, val_acc_lst)
     """
     # TODO: Initialize theta and beta.
-    theta = None
-    beta = None
-
+    theta = np.full((542, 1), 0.5)
+    beta = np.full((1774, 1), 0.5)
+    
     val_acc_lst = []
+    neg_lld_train = []
+    neg_lld_val = []
 
     for i in range(iterations):
-        neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
-        score = evaluate(data=val_data, theta=theta, beta=beta)
+        neg_lld = neg_log_likelihood(data, theta=theta[:,0], beta=beta[:,0])
+        neg_lld_train.append(neg_lld)
+        neg_lld_val.append(neg_log_likelihood(val_data,theta=theta[:,0],beta = beta[:,0]))
+        score = evaluate(data=val_data, theta=theta[:,0], beta=beta[:,0])
         val_acc_lst.append(score)
         print("NLLK: {} \t Score: {}".format(neg_lld, score))
-        theta, beta = update_theta_beta(data, lr, theta, beta)
-
+        theta, beta = update_theta_beta(data, lr, theta, beta, c_matrix, in_data_matrix)
+    plt.figure(1)
+    plt.plot([i+1 for i in range(iterations)],neg_lld_train)
+    plt.plot([i+1 for i in range(iterations)],neg_lld_val)
+    plt.legend(["Training","Validation"])
+    plt.xlabel("Iterations")
+    plt.ylabel("Negative Log-Likelihood")
+    plt.show()
     # TODO: You may change the return values to achieve what you want.
     return theta, beta, val_acc_lst
 
@@ -115,12 +137,43 @@ def main():
     val_data = load_valid_csv("../data")
     test_data = load_public_test_csv("../data")
 
+
     #####################################################################
     # TODO:                                                             #
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    pass
+    c_matrix = np.zeros((542, 1774)) # is_correct matrix
+    in_data_matrix = np.zeros((542, 1774)) # if observation is in data
+
+    users = train_data["user_id"]
+    questions = train_data["question_id"]
+    is_correct = train_data["is_correct"]
+    for i in range(len(users)):
+        u = users[i]
+        q = questions[i]
+        c = is_correct[i]
+    
+        c_matrix[u, q] = c
+        in_data_matrix[u, q] = 1
+    
+    num_iterations = 8
+    lr = 0.01
+    theta, beta, val_acc_lst = irt(train_data, val_data, lr, num_iterations, c_matrix, in_data_matrix)
+
+    fig1 = plt.figure()
+    ax = fig1.add_axes([0, 0, 1, 1])
+    ax.set_xlabel("Iterations")
+    ax.set_ylabel("Accuracy")
+    plt.plot([i+1 for i in range(num_iterations)], val_acc_lst, "-g", label="validation")
+    plt.legend(loc="upper right")
+    plt.show()
+
+
+    max_i = np.argmax(np.array(val_acc_lst))
+    print("The iteration value with the highest validation accuracy is " + str(max_i+1) + " with an accuracy of " + str(val_acc_lst[max_i]))
+    print("The test accuracy is " + str(evaluate(test_data, theta, beta)))
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -129,7 +182,31 @@ def main():
     # TODO:                                                             #
     # Implement part (c)                                                #
     #####################################################################
-    pass
+    fig1 = plt.figure()
+    ax = fig1.add_axes([0, 0, 1, 1])
+    ax.set_xlabel("Theta")
+    ax.set_ylabel("Probability")
+
+    j1 = []
+    j2 = []
+    j3 = []
+    j4 = []
+    j5 = []
+    # Plot questions 0, 100, 200, 300, 400
+    for i in range(542):
+        j1.append(sigmoid((theta[i] - beta[0]).sum()))
+        j2.append(sigmoid((theta[i] - beta[100]).sum()))
+        j3.append(sigmoid((theta[i] - beta[250]).sum()))
+        j4.append(sigmoid((theta[i] - beta[350]).sum()))
+        j5.append(sigmoid((theta[i] - beta[450]).sum()))
+
+    plt.plot([i for i in range(542)], j1)
+    plt.plot([i for i in range(542)], j2)
+    plt.plot([i for i in range(542)], j3)
+    plt.plot([i for i in range(542)], j4)
+    plt.plot([i for i in range(542)], j5)
+    plt.legend(["Q0","Q100","Q250","Q350","Q450"])
+    plt.show()
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
