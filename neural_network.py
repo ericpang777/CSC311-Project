@@ -172,7 +172,6 @@ def evaluate(model, train_data, valid_data):
     return correct / float(total)
 
 zero_train_matrix, train_matrix, valid_data, test_data = load_data()
-print(zero_train_matrix)
 #####################################################################
 # TODO:                                                             #
 # Try out 5 different k and select the best k using the             #
