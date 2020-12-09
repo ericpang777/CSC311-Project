@@ -1,5 +1,7 @@
 from sklearn.impute import KNNImputer
 from utils import *
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def knn_impute_by_user(matrix, valid_data, k):
@@ -37,7 +39,11 @@ def knn_impute_by_item(matrix, valid_data, k):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    acc = None
+    nbrs = KNNImputer(n_neighbors=k)
+    matrix = matrix.T
+    mat = nbrs.fit_transform(matrix)
+    acc = sparse_matrix_evaluate(valid_data, mat.T)
+    print("Validation Accuracy: {}".format(acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -60,7 +66,44 @@ def main():
     # the best performance and report the test accuracy with the        #
     # chosen k*.                                                        #
     #####################################################################
-    pass
+    acc = []
+    k_range = [1, 6, 11, 16, 21, 26]
+    for k in k_range:
+        acc.append(knn_impute_by_user(sparse_matrix, val_data, k))
+
+    fig1 = plt.figure()
+    ax = fig1.add_axes([0, 0, 1, 1])
+    ax.set_xlabel("k")
+    ax.set_ylabel("Accuracy")
+    plt.plot(k_range, acc, "-g", label="validation")
+    plt.legend(loc="upper right")
+    plt.show()
+
+    max_k = np.argmax(np.array(acc))
+    print("The highest performing k on validation data was: " + str(k_range[max_k]) + " with an accuracy of " + str(acc[max_k]))
+    # This call will print out a validation result just because it uses that function, but it's actually using the test set
+    print("The test accuracy was: " + str(knn_impute_by_user(sparse_matrix, test_data, k_range[max_k])))
+
+    print()
+
+    acc = []
+    k_range = [1, 6, 11, 16, 21, 26]
+    for k in k_range:
+        acc.append(knn_impute_by_item(sparse_matrix, val_data, k))
+
+    fig1 = plt.figure()
+    ax = fig1.add_axes([0, 0, 1, 1])
+    ax.set_xlabel("k")
+    ax.set_ylabel("Accuracy")
+    plt.plot(k_range, acc, "-g", label="validation")
+    plt.legend(loc="lower right")
+    plt.show()
+
+    max_k = np.argmax(np.array(acc))
+    print("The highest performing k on validation data was: " + str(k_range[max_k]) + " with an accuracy of " + str(acc[max_k]))
+    # This call will print out a validation result just because it uses that function, but it's actually using the test set
+    print("The test accuracy was: " + str(knn_impute_by_item(sparse_matrix, test_data, k_range[max_k])))
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
