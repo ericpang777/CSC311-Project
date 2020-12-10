@@ -1,5 +1,5 @@
-from utils import *
 from torch.autograd import Variable
+from utils import *
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,6 +9,12 @@ import torch.utils.data
 import numpy as np
 import torch
 
+from scipy.sparse import load_npz
+import matplotlib.pyplot as plt
+
+import numpy as np
+import csv
+import os
 
 def load_data(base_path="../data"):
     """ Load the data in PyTorch Tensor.
@@ -35,7 +41,6 @@ def load_data(base_path="../data"):
     train_matrix = torch.FloatTensor(train_matrix)
 
     return zero_train_matrix, train_matrix, valid_data, test_data
-
 
 class AutoEncoder(nn.Module):
     def __init__(self, num_question, k=100):
@@ -70,12 +75,13 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = inputs
+        sig = nn.Sigmoid()
+        g_out = sig(self.g(inputs))
+        h_out = sig(self.h(g_out))
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
-        return out
-
+        return h_out
 
 def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     """ Train the neural network, where the objective also includes
@@ -98,7 +104,8 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     # Define optimizers and loss function.
     optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
-
+    valid_arr = []
+    train_arr = []
     for epoch in range(0, num_epoch):
         train_loss = 0.
 
@@ -113,19 +120,31 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            loss = torch.sum((output - target) ** 2.)
+            loss = torch.sum((output - target) ** 2.)+lamb/2*(model.get_weight_norm())
             loss.backward()
 
             train_loss += loss.item()
+            
             optimizer.step()
-
+        train_arr.append(train_loss)
         valid_acc = evaluate(model, zero_train_data, valid_data)
+        valid_arr.append(valid_acc)
+      
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+    plt.figure(1)
+    plt.plot(range(0,num_epoch),valid_arr)
+    plt.xlabel("Epoch Number")
+    plt.ylabel("Accuracy")
+    plt.show()
+    plt.figure(2)
+    plt.plot(range(0,num_epoch),train_arr)
+    plt.xlabel("Epoch Number")
+    plt.ylabel("Loss")
+    plt.show()
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
-
 
 def evaluate(model, train_data, valid_data):
     """ Evaluate the valid_data on the current model.
@@ -152,30 +171,26 @@ def evaluate(model, train_data, valid_data):
         total += 1
     return correct / float(total)
 
+zero_train_matrix, train_matrix, valid_data, test_data = load_data()
+#####################################################################
+# TODO:                                                             #
+# Try out 5 different k and select the best k using the             #
+# validation set.                                                   #
+#####################################################################
+# Set model hyperparameters.
+k = 50
+model = AutoEncoder(train_matrix.shape[1], k=k)
 
-def main():
-    zero_train_matrix, train_matrix, valid_data, test_data = load_data()
+# Set optimization hyperparameters.
+lr = 0.001
+num_epoch = 430
+lamb = 1
 
-    #####################################################################
-    # TODO:                                                             #
-    # Try out 5 different k and select the best k using the             #
-    # validation set.                                                   #
-    #####################################################################
-    # Set model hyperparameters.
-    k = None
-    model = None
-
-    # Set optimization hyperparameters.
-    lr = None
-    num_epoch = None
-    lamb = None
-
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
-          valid_data, num_epoch)
-    #####################################################################
-    #                       END OF YOUR CODE                            #
-    #####################################################################
-
-
-if __name__ == "__main__":
-    main()
+train(model, lr, lamb, train_matrix, zero_train_matrix,
+      valid_data, num_epoch)
+test_acc = evaluate(model,zero_train_matrix,test_data)
+print("Test accuaracy =")
+print(test_acc)
+#####################################################################
+#                       END OF YOUR CODE                            #
+#####################################################################
