@@ -196,16 +196,16 @@ def main():
     for i in range(542):
         j1.append(sigmoid((theta[i] - beta[0]).sum()))
         j2.append(sigmoid((theta[i] - beta[100]).sum()))
-        j3.append(sigmoid((theta[i] - beta[250]).sum()))
-        j4.append(sigmoid((theta[i] - beta[350]).sum()))
-        j5.append(sigmoid((theta[i] - beta[450]).sum()))
+        j3.append(sigmoid((theta[i] - beta[200]).sum()))
+        j4.append(sigmoid((theta[i] - beta[300]).sum()))
+        j5.append(sigmoid((theta[i] - beta[400]).sum()))
 
-    plt.plot([i for i in range(542)], j1)
-    plt.plot([i for i in range(542)], j2)
-    plt.plot([i for i in range(542)], j3)
-    plt.plot([i for i in range(542)], j4)
-    plt.plot([i for i in range(542)], j5)
-    plt.legend(["Q0","Q100","Q250","Q350","Q450"])
+    plt.plot(theta, j1, ".")
+    plt.plot(theta, j2, ".")
+    plt.plot(theta, j3, ".")
+    plt.plot(theta, j4, ".")
+    plt.plot(theta, j5, ".")
+    plt.legend(["Q0","Q100","Q200","Q300","Q400"])
     plt.show()
     #####################################################################
     #                       END OF YOUR CODE                            #
